@@ -20,6 +20,8 @@ export class AuthServiceService {
   logout(): void {
     localStorage.removeItem(this.AUTH_TOKEN_KEY);
     localStorage.removeItem(this.USER_DATA_KEY);
+    sessionStorage.removeItem(this.AUTH_TOKEN_KEY);
+    sessionStorage.removeItem(this.USER_DATA_KEY);
   }
   getUserData(): any | null {
     const userData = localStorage.getItem(this.USER_DATA_KEY);
