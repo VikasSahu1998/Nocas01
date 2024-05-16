@@ -2,51 +2,56 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../Shared/Api/api.service';
+import { AuthServiceService } from '../Shared/Api/auth-service.service';
+
 @Component({
   selector: 'app-users-login',
   templateUrl: './users-login.component.html',
-  styleUrl: './users-login.component.scss'
+  styleUrls: ['./users-login.component.scss']
 })
-export class UsersLoginComponent {
+export class UsersLoginComponent implements OnInit {
 
   LogInForm: FormGroup | any;
   email: string = '';
   password: string = '';
   loginError: string = '';
-  isAuthenticated: boolean = false;
+  showPassword: boolean = false;
 
-
-  constructor(private formbuilder: FormBuilder, private router: Router, private apiservice: ApiService) { }
-  public showPassword: boolean = false;
+  constructor(
+    private formbuilder: FormBuilder,
+    private router: Router,
+    private authService: AuthServiceService, // Inject the AuthService
+    private apiservice: ApiService
+  ) { }
 
   ngOnInit(): void {
-    this.LogInForm = new FormGroup({
-      email: new FormControl('', [Validators.required, Validators.email, Validators.nullValidator]),
-      password: new FormControl('', [Validators.required, Validators.nullValidator])
+    this.LogInForm = this.formbuilder.group({ // Use formbuilder.group instead of new FormGroup
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', Validators.required]
     });
+
+    // Check if user is already authenticated (automatic login)
+    if (this.authService.isAuthenticated()) {
+      this.router.navigate(['UsersProfile']);
+    }
   }
 
-  login() {
-    // Check if the form is valid
+  login(): void {
     if (this.LogInForm.valid) {
-      // Form is valid, proceed with login
-      const credentials = { email: this.LogInForm.value.email, password: this.LogInForm.value.password };
-      let url = this.apiservice.baseUrl + '/user/userLogin';
-  
-      this.apiservice.http.post<any>(url, credentials)
+      const credentials = {
+        email: this.LogInForm.value.email,
+        password: this.LogInForm.value.password
+      };
+
+      this.apiservice.http.post<any>(`${this.apiservice.baseUrl}/user/userLogin`, credentials)
         .subscribe(
           response => {
-            console.log(response)
             if (response.success) {
-              // let {id,uname,address,phone_number,email,password} = response.user
-              // this.apiservice.userData = new User(id,uname,address,phone_number,email,password)
-              this.apiservice.token = response.jwttoken
-              console.log(response.jwttoken)
+              this.authService.login(response.jwttoken); 
               this.router.navigate(['UsersProfile']);
-              // this.isAuthenticated = true;
             } else {
               alert('Invalid email or password. Please try again.');
-            } 
+            }
           },
           error => {
             console.error('Error during login:', error);
@@ -54,15 +59,11 @@ export class UsersLoginComponent {
           }
         );
     } else {
-      // Form is invalid, display error message or take appropriate action
       alert('Please fill in all required fields and ensure they are valid.');
     }
   }
-  
-
 
   togglePasswordVisibility(): void {
     this.showPassword = !this.showPassword;
   }
-
 }

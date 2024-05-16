@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { ApiService } from '../Shared/Api/api.service';
+import { AuthServiceService } from '../Shared/Api/auth-service.service';
 
 
 
@@ -25,19 +26,17 @@ export class UsersProfileComponent implements OnInit {
 
 
 
-  constructor(private route: ActivatedRoute, private http: HttpClient, public apiservice: ApiService, private router: Router) { }
+  constructor(private route: ActivatedRoute,private authService: AuthServiceService , private http: HttpClient, public apiservice: ApiService, private router: Router) { }
 
   ngOnInit(): void {
-    // this.user = history.state.user;
-    // Copy user data to updatedUser object for editing
-    // this.updatedUser = { ...this.user };
-    // console.log(this.updatedUser)
+    // Check if user is authenticated
+    if (!this.authService.isAuthenticated()) {
+      this.router.navigate(['UserLogin']); // Redirect to login if not authenticated
+      return;
+    }
     this.getUserDetails();
-
-  
   }
-  // Inside your component class (e.g., ProfileComponent)
-  // Inside your component class (e.g., ProfileComponent)
+  
   imageUrl: string = '';
   imageName: string = '';
   selectedFile: File | undefined;
@@ -79,7 +78,7 @@ export class UsersProfileComponent implements OnInit {
   }
 
   logout() {
-    console.log("de")
+    this.authService.logout();
     this.router.navigate(['UserLogin']);
   }
 
@@ -111,27 +110,34 @@ export class UsersProfileComponent implements OnInit {
   //     );
   // }
 
-  
   getUserDetails(): void {
-
-    const headers = new HttpHeaders().set("Authorization", `Bearer ${this.apiservice.token}`);
-    this.http.post<any>('http://localhost:3001/api/user/myProfile', {}, { headers: headers })
+    if (!this.authService.isAuthenticated()) {
+      this.router.navigate(['UserLogin']);
+      return;
+    }
+  
+    const headers = new HttpHeaders().set("Authorization", `Bearer ${this.authService.getToken()}`);
+  
+    this.http.post<any>('http://localhost:3001/api/user/myProfile', {}, { headers })
       .subscribe(
         response => {
           this.apiservice.userData = JSON.parse(JSON.stringify(response))
-          // console.log(response)
           this.updatedUser = JSON.parse(JSON.stringify(response))
           this.user = JSON.parse(JSON.stringify(response))
-
         },
         error => {
-          alert("Failed Login")
-          this.router.navigate(['UserLogin']);
+          console.error('Error fetching user profile:', error);
+          if (error.status === 401) {
+            alert('Unauthorized access. Please log in again.');
+            this.authService.logout(); // Logout user if unauthorized
+            this.router.navigate(['UserLogin']);
+          } else {
+            alert('Failed to fetch user profile. Please try again.');
+          }
         }
-      )
-
+      );
   }
-
+  
   validatePassword() {
     // Check if the paswords match
     this.passwordsMatch = this.newPassword  === this.confirmPassword  && !!this.newPassword;
